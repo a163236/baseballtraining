@@ -14,10 +14,28 @@ class GameEngine {
   String _nextId() => 'p${_idCounter++}';
 
   static const List<String> _familyNames = [
-    '佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村', '小林', '加藤',
+    '佐藤',
+    '鈴木',
+    '高橋',
+    '田中',
+    '伊藤',
+    '渡辺',
+    '山本',
+    '中村',
+    '小林',
+    '加藤',
   ];
   static const List<String> _givenNames = [
-    '翔太', '健太', '大輝', '蓮', '悠斗', '陽向', '颯太', '海斗', '悠真', '湊',
+    '翔太',
+    '健太',
+    '大輝',
+    '蓮',
+    '悠斗',
+    '陽向',
+    '颯太',
+    '海斗',
+    '悠真',
+    '湊',
   ];
 
   String _randomName() {
@@ -74,17 +92,68 @@ class GameEngine {
         } else {
           gain = _random.nextInt(2); // 0〜1
         }
+        if (player.trait == PlayerTrait.hardWorker) {
+          gain += type == focus ? 1 : _random.nextInt(2);
+        }
+        if (player.trait == PlayerTrait.genius && _random.nextInt(100) < 18) {
+          gain += 2;
+        }
+        if (player.fatigue >= 70) {
+          gain = max(0, gain - 1);
+        }
         stats[type] = (stats[type]! + gain).clamp(0, 99);
       }
-      updated.add(player.copyWith(stats: stats));
+      final fatigueGain = player.trait == PlayerTrait.fragile ? 9 : 6;
+      updated.add(player.copyWith(
+        stats: stats,
+        fatigue: (player.fatigue + fatigueGain).clamp(0, 100),
+        morale: (player.morale + 1).clamp(0, 100),
+      ));
     }
+    final event = _practiceEvent(updated);
     return _afterPractice(
       state.copyWith(
-        roster: updated,
+        roster: event.roster,
         practiceDoneThisWeek: true,
-        message: '今週は「${focus.label}」を重点練習しました。',
+        message: '今週は「${focus.label}」を重点練習しました。${event.message}',
         pendingAction: PendingAction.none,
       ),
+    );
+  }
+
+  ({List<Player> roster, String message}) _practiceEvent(List<Player> roster) {
+    if (roster.isEmpty || _random.nextInt(100) >= 28) {
+      return (roster: roster, message: '');
+    }
+
+    final index = _random.nextInt(roster.length);
+    final player = roster[index];
+    final updated = [...roster];
+    if (player.trait == PlayerTrait.fragile || player.fatigue >= 80) {
+      updated[index] = player.copyWith(
+        fatigue: (player.fatigue + 12).clamp(0, 100),
+        morale: (player.morale - 5).clamp(0, 100),
+      );
+      return (roster: updated, message: ' ${player.name}に疲労の色が見えます。');
+    }
+
+    if (player.trait == PlayerTrait.moodMaker) {
+      return (
+        roster: roster
+            .map((p) => p.copyWith(morale: (p.morale + 4).clamp(0, 100)))
+            .toList(),
+        message: ' ${player.name}の声かけでチームの士気が上がりました。'
+      );
+    }
+
+    final stat = StatType.values[_random.nextInt(StatType.values.length)];
+    final stats = Map<StatType, int>.from(player.stats);
+    stats[stat] = (stats[stat]! + 3).clamp(0, 99);
+    updated[index] = player.copyWith(
+        stats: stats, morale: (player.morale + 6).clamp(0, 100));
+    return (
+      roster: updated,
+      message: ' ${player.name}が居残り練習で${stat.label}を伸ばしました。'
     );
   }
 
@@ -117,7 +186,11 @@ class GameEngine {
       year += 1;
       // 卒業
       final roster = state.roster
-          .map((p) => p.copyWith(grade: p.grade + 1))
+          .map((p) => p.copyWith(
+                grade: p.grade + 1,
+                fatigue: max(0, p.fatigue - 30),
+                morale: (p.morale + 5).clamp(0, 100),
+              ))
           .where((p) => p.grade <= 3)
           .toList();
       return GameState(
@@ -136,6 +209,13 @@ class GameEngine {
 
     phase = _phaseForWeek(week);
     pending = PendingAction.none;
+    final roster = state.roster
+        .map((p) => p.copyWith(
+              fatigue: max(0, p.fatigue - 3),
+              morale: (p.morale + (p.trait == PlayerTrait.moodMaker ? 1 : 0))
+                  .clamp(0, 100),
+            ))
+        .toList();
 
     // 毎週練習可能（idea: 週に一回）
     if (week % 1 == 0 && phase != SeasonPhase.winter) {
@@ -152,7 +232,8 @@ class GameEngine {
     // 公式戦: 夏
     if (week == 24 && state.stage.index < TournamentStage.champion.index) {
       pending = PendingAction.tournament;
-      message = _tournamentMessage(state.stage.next ?? TournamentStage.district);
+      message =
+          _tournamentMessage(state.stage.next ?? TournamentStage.district);
     } else if (week == 30 &&
         state.stage.index >= TournamentStage.district.index &&
         state.stage != TournamentStage.champion) {
@@ -174,6 +255,7 @@ class GameEngine {
       week: week,
       year: year,
       phase: phase,
+      roster: roster,
       pendingAction: pending,
       scoutCandidates: scoutCandidates,
       message: message,
@@ -214,7 +296,7 @@ class GameEngine {
   GameState playTournament(GameState state) {
     final playStage = _nextPlayableStage(state);
     final opponentPower = _opponentPower(playStage);
-    final ourPower = state.teamPower;
+    final ourPower = state.matchPower;
     final diff = ourPower - opponentPower;
 
     // 勝率: diff に応じて 30%〜85%
@@ -230,16 +312,26 @@ class GameEngine {
       ourScore: ourScore,
       theirScore: theirScore,
       stage: playStage,
+      highlights: _matchHighlights(state, playStage, won),
     );
+    final rosterAfterMatch = state.roster.map((p) {
+      return p.copyWith(
+        fatigue: (p.fatigue + (p.trait == PlayerTrait.fragile ? 14 : 10))
+            .clamp(0, 100),
+        morale: (p.morale + (won ? 8 : -8)).clamp(0, 100),
+      );
+    }).toList();
 
     if (won) {
       final newStage = playStage;
       final next = newStage.next;
       return state.copyWith(
+        roster: rosterAfterMatch,
         stage: newStage,
         lastMatch: result,
-        pendingAction:
-            newStage == TournamentStage.champion ? PendingAction.gameOver : PendingAction.none,
+        pendingAction: newStage == TournamentStage.champion
+            ? PendingAction.gameOver
+            : PendingAction.none,
         message: newStage == TournamentStage.champion
             ? '甲子園優勝！伝説の監督になりました！'
             : '「${newStage.label}」突破！${next != null ? "次は${next.label}です。" : ""}',
@@ -247,10 +339,53 @@ class GameEngine {
     }
 
     return state.copyWith(
+      roster: rosterAfterMatch,
       lastMatch: result,
       pendingAction: PendingAction.none,
       message: '「${playStage.label}」で敗退…来季に備えて練習を続けましょう。',
     );
+  }
+
+  List<String> _matchHighlights(
+    GameState state,
+    TournamentStage stage,
+    bool won,
+  ) {
+    if (state.roster.isEmpty) return const [];
+    final sorted = [...state.roster]
+      ..sort((a, b) => b.matchPower.compareTo(a.matchPower));
+    final ace = sorted.firstWhere(
+      (p) => p.role == PlayerRole.pitcher,
+      orElse: () => sorted.first,
+    );
+    final hitter = sorted.firstWhere(
+      (p) => p.role != PlayerRole.pitcher,
+      orElse: () => sorted.first,
+    );
+    final highlights = <String>[];
+
+    if (won) {
+      highlights.add('${ace.name}が${stage.label}の重圧に耐え、終盤まで粘投しました。');
+      highlights.add('${hitter.name}が勝負どころで長打を放ち、流れを引き寄せました。');
+      if (state.averageMorale >= 65) {
+        highlights.add('ベンチの声が最後まで切れず、チーム全体が普段以上の力を出しました。');
+      }
+    } else {
+      highlights.add('${ace.name}が中盤まで踏ん張りましたが、終盤に相手打線につかまりました。');
+      if (state.averageFatigue >= 55) {
+        highlights.add('蓄積した疲労の影響で、守備と走塁の反応が一歩遅れました。');
+      } else {
+        highlights.add('${hitter.name}の一打で追い上げましたが、あと一本が出ませんでした。');
+      }
+    }
+
+    final clutch =
+        state.roster.where((p) => p.trait == PlayerTrait.clutch).toList();
+    if (clutch.isNotEmpty && _random.nextBool()) {
+      highlights.add(
+          '${clutch[_random.nextInt(clutch.length)].name}が勝負強さを見せ、試合終盤を盛り上げました。');
+    }
+    return highlights;
   }
 
   int _opponentPower(TournamentStage stage) => switch (stage) {

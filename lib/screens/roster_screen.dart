@@ -23,19 +23,38 @@ class RosterScreen extends StatelessWidget {
             child: ExpansionTile(
               leading: CircleAvatar(child: Text('${p.overall}')),
               title: Text(p.name),
-              subtitle: Text('${p.grade}年 / ${p.role.label}'),
+              subtitle: Text(
+                '${p.grade}年 / ${p.role.label} / ${p.trait.label} / ${p.conditionLabel}',
+              ),
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: StatType.values.map((s) {
-                      return Chip(
-                        label: Text('${s.label} ${p.stats[s]}'),
-                        visualDensity: VisualDensity.compact,
-                      );
-                    }).toList(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(p.trait.description),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Chip(
+                            label: Text('士気 ${p.morale}'),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          Chip(
+                            label: Text('疲労 ${p.fatigue}'),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          ...StatType.values.map((s) {
+                            return Chip(
+                              label: Text('${s.label} ${p.stats[s]}'),
+                              visualDensity: VisualDensity.compact,
+                            );
+                          }),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],

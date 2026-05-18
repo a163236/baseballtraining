@@ -22,6 +22,7 @@ class MatchResult {
     required this.ourScore,
     required this.theirScore,
     required this.stage,
+    this.highlights = const [],
   });
 
   final String opponentName;
@@ -29,6 +30,7 @@ class MatchResult {
   final int ourScore;
   final int theirScore;
   final TournamentStage stage;
+  final List<String> highlights;
 
   String get summary =>
       won ? '$ourScore - $theirScore 勝利' : '$ourScore - $theirScore 敗北';
@@ -68,6 +70,26 @@ class GameState {
         .round();
   }
 
+  int get matchPower {
+    if (roster.isEmpty) return 0;
+    return (roster.map((p) => p.matchPower).reduce((a, b) => a + b) /
+            roster.length)
+        .round();
+  }
+
+  int get averageFatigue {
+    if (roster.isEmpty) return 0;
+    return (roster.map((p) => p.fatigue).reduce((a, b) => a + b) /
+            roster.length)
+        .round();
+  }
+
+  int get averageMorale {
+    if (roster.isEmpty) return 0;
+    return (roster.map((p) => p.morale).reduce((a, b) => a + b) / roster.length)
+        .round();
+  }
+
   bool get isChampion => stage == TournamentStage.champion;
 
   GameState copyWith({
@@ -96,8 +118,7 @@ class GameState {
       lastMatch: clearLastMatch ? null : (lastMatch ?? this.lastMatch),
       message: clearMessage ? null : (message ?? this.message),
       scoutCandidates: scoutCandidates ?? this.scoutCandidates,
-      practiceDoneThisWeek:
-          practiceDoneThisWeek ?? this.practiceDoneThisWeek,
+      practiceDoneThisWeek: practiceDoneThisWeek ?? this.practiceDoneThisWeek,
     );
   }
 
@@ -117,6 +138,7 @@ class GameState {
             'our': lastMatch!.ourScore,
             'their': lastMatch!.theirScore,
             'stage': lastMatch!.stage.index,
+            'highlights': lastMatch!.highlights,
           },
         },
         if (message != null) 'message': message,
@@ -132,6 +154,9 @@ class GameState {
         ourScore: lm['our'] as int,
         theirScore: lm['their'] as int,
         stage: TournamentStage.values[lm['stage'] as int],
+        highlights: (lm['highlights'] as List? ?? const [])
+            .map((e) => e as String)
+            .toList(),
       );
     }
     return GameState(

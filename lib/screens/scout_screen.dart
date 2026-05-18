@@ -55,20 +55,29 @@ class _CandidateCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(player.name, style: Theme.of(context).textTheme.titleLarge),
+                Text(player.name,
+                    style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
                 Text('総合 ${player.overall}',
                     style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
-            Text('${player.role.label} / 1年生'),
+            Text('${player.role.label} / 1年生 / ${player.trait.label}'),
+            Text(
+              player.trait.description,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: StatType.values.map((s) {
-                return Chip(label: Text('${s.label}${player.stats[s]}'));
-              }).toList(),
+              children: [
+                Chip(label: Text('士気${player.morale}')),
+                Chip(label: Text('疲労${player.fatigue}')),
+                ...StatType.values.map((s) {
+                  return Chip(label: Text('${s.label}${player.stats[s]}'));
+                }),
+              ],
             ),
             const SizedBox(height: 12),
             FilledButton(

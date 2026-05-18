@@ -83,7 +83,8 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'メンバー',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => RosterScreen(roster: _state.roster)),
+              MaterialPageRoute(
+                  builder: (_) => RosterScreen(roster: _state.roster)),
             ),
           ),
         ],
@@ -107,15 +108,41 @@ class _HomeScreenState extends State<HomeScreen> {
               color: _state.lastMatch!.won
                   ? Colors.green.shade50
                   : Colors.red.shade50,
-              child: ListTile(
-                title: Text('vs ${_state.lastMatch!.opponentName}'),
-                subtitle: Text(_state.lastMatch!.stage.label),
-                trailing: Text(
-                  _state.lastMatch!.summary,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: _state.lastMatch!.won ? Colors.green.shade800 : Colors.red.shade800,
-                  ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'vs ${_state.lastMatch!.opponentName}',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
+                        Text(
+                          _state.lastMatch!.summary,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: _state.lastMatch!.won
+                                ? Colors.green.shade800
+                                : Colors.red.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(_state.lastMatch!.stage.label),
+                    if (_state.lastMatch!.highlights.isNotEmpty) ...[
+                      const Divider(height: 20),
+                      ..._state.lastMatch!.highlights.map(
+                        (text) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('・$text'),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -148,7 +175,8 @@ class _StatusCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${state.year}年目  第${state.week}週', style: Theme.of(context).textTheme.titleLarge),
+            Text('${state.year}年目  第${state.week}週',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(state.phase.label),
             const Divider(height: 24),
@@ -156,7 +184,24 @@ class _StatusCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('チーム戦力', style: Theme.of(context).textTheme.bodyMedium),
-                Text('${state.teamPower}', style: Theme.of(context).textTheme.headlineSmall),
+                Text('${state.teamPower}',
+                    style: Theme.of(context).textTheme.headlineSmall),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                    child: _Meter(
+                        label: '士気',
+                        value: state.averageMorale,
+                        color: Colors.blue)),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: _Meter(
+                        label: '疲労',
+                        value: state.averageFatigue,
+                        color: Colors.deepOrange)),
               ],
             ),
             const SizedBox(height: 8),
@@ -173,10 +218,41 @@ class _StatusCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text('部員 ${state.roster.length}人', style: Theme.of(context).textTheme.bodySmall),
+            Text('部員 ${state.roster.length}人',
+                style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _Meter extends StatelessWidget {
+  const _Meter({required this.label, required this.value, required this.color});
+
+  final String label;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            Text('$value', style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: value / 100,
+          color: color,
+          backgroundColor: color.withValues(alpha: 0.16),
+        ),
+      ],
     );
   }
 }
@@ -236,7 +312,8 @@ class _ActionSection extends StatelessWidget {
             onPressed: onMatch,
             icon: const Icon(Icons.sports_baseball),
             label: const Text('試合結果を見る'),
-            style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
+            style:
+                FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
           ),
         ],
         if (action == PendingAction.scout) ...[
@@ -260,7 +337,10 @@ class _ActionSection extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           '毎週1回、伸ばす能力を選んで練習できます。選ばなかった能力も少しずつ伸びます。',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: Colors.grey.shade700),
           textAlign: TextAlign.center,
         ),
       ],
